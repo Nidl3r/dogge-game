@@ -28,23 +28,38 @@ def install_pygame():
         return False
 
 # Paths
-DOG_INSTANCE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dog_instance.py")
-SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schnauzer_settings.json")
-
-# Determine which Python executable to use (prefer venv)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-VENV_PYTHON = os.path.join(SCRIPT_DIR, "venv", "Scripts", "python.exe")
-if os.path.exists(VENV_PYTHON):
-    PYTHON_EXE = VENV_PYTHON
+
+# Check if running from PyInstaller bundle
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    # Running from PyInstaller bundle
+    BUNDLE_DIR = sys._MEIPASS
+    EXE_DIR = os.path.dirname(sys.executable)
+    # Look for DogInstance.exe in the same directory as SchnauzerPet.exe
+    DOG_EXECUTABLE = os.path.join(EXE_DIR, "DogInstance.exe")
+    IS_FROZEN = True
+    PYTHON_EXE = None  # Not needed in frozen mode
+    DOG_INSTANCE_SCRIPT = None  # Not needed in frozen mode
 else:
-    PYTHON_EXE = sys.executable
+    # Running from source
+    DOG_INSTANCE_SCRIPT = os.path.join(SCRIPT_DIR, "dog_instance.py")
+    DOG_EXECUTABLE = None # Not needed in source mode
+    # Prefer venv Python
+    VENV_PYTHON = os.path.join(SCRIPT_DIR, "venv", "Scripts", "python.exe")
+    if os.path.exists(VENV_PYTHON):
+        PYTHON_EXE = VENV_PYTHON
+    else:
+        PYTHON_EXE = sys.executable
+    IS_FROZEN = False
+
+SETTINGS_FILE = os.path.join(SCRIPT_DIR, "schnauzer_settings.json")
 
 
 class SchnauzerLauncher:
     def __init__(self, root):
         self.root = root
-        self.root.title("🐕 Schnauzer Desktop Pet")
-        self.root.geometry("500x650")
+        self.root.title("Schnauzer Desktop Pet")
+        self.root.geometry("500x700")  # Increased height to show full help text
         self.root.resizable(False, False)
         
         # Configure colors
@@ -293,8 +308,23 @@ class SchnauzerLauncher:
         
         try:
             # Start dog process
+            if IS_FROZEN:
+                # Running from PyInstaller - use separate DogInstance.exe
+                if not os.path.exists(DOG_EXECUTABLE):
+                    messagebox.showerror(
+                        "Missing File",
+                        f"Cannot find DogInstance.exe.\n\n"
+                        f"Expected location: {DOG_EXECUTABLE}\n\n"
+                        "Make sure all files were extracted from the ZIP."
+                    )
+                    return
+                cmd = [DOG_EXECUTABLE]
+            else:
+                # Running from source - use Python
+                cmd = [PYTHON_EXE, DOG_INSTANCE_SCRIPT]
+            
             process = subprocess.Popen(
-                [PYTHON_EXE, DOG_INSTANCE_SCRIPT],
+                cmd,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
@@ -324,7 +354,7 @@ class SchnauzerLauncher:
     def reset_launch_button(self):
         """Reset launch button to original state"""
         self.launch_btn.config(
-            text="🚀 Launch Another Dog",
+            text="🚀 Launch Schnauzer Pet",
             bg=self.success_color
         )
     
@@ -340,8 +370,24 @@ class SchnauzerLauncher:
             return
         
         try:
+            # Start dog process
+            if IS_FROZEN:
+                # Running from PyInstaller - use separate DogInstance.exe
+                if not os.path.exists(DOG_EXECUTABLE):
+                    messagebox.showerror(
+                        "Missing File",
+                        f"Cannot find DogInstance.exe.\n\n"
+                        f"Expected location: {DOG_EXECUTABLE}\n\n"
+                        "Make sure all files were extracted from the ZIP."
+                    )
+                    return
+                cmd = [DOG_EXECUTABLE]
+            else:
+                # Running from source - use Python
+                cmd = [PYTHON_EXE, DOG_INSTANCE_SCRIPT]
+            
             process = subprocess.Popen(
-                [PYTHON_EXE, DOG_INSTANCE_SCRIPT],
+                cmd,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
