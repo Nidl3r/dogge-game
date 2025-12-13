@@ -935,8 +935,18 @@ class Dog:
 
 if __name__ == "__main__":
     # Get position from command line args if provided
-    start_x = int(sys.argv[1]) if len(sys.argv) > 1 else None
-    start_y = int(sys.argv[2]) if len(sys.argv) > 2 else None
+    # Handle both PyInstaller bundle and normal execution
+    start_x = None
+    start_y = None
+    
+    try:
+        if len(sys.argv) > 1:
+            start_x = int(sys.argv[1])
+        if len(sys.argv) > 2:
+            start_y = int(sys.argv[2])
+    except (ValueError, IndexError):
+        # Arguments not provided or invalid, use defaults
+        pass
     
     dog = Dog(start_x, start_y)
     dog.run()
