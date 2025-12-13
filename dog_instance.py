@@ -749,28 +749,30 @@ class Dog:
                                     self.visible_zones.append([z[0], z[1], GROUND_Y, 60])
                             
                             # If dog was in a zone, move it to maintain relative position in that zone
+                            # Only reposition if dog is not walking (prevents vibration during zone editing)
                             if current_zone_index is not None and current_zone_index < len(self.visible_zones):
-                                new_zone = self.visible_zones[current_zone_index]
-                                if len(new_zone) >= 4:
-                                    zone_start, zone_end, zone_y, zone_height = new_zone[0], new_zone[1], new_zone[2], new_zone[3]
-                                else:
-                                    zone_start, zone_end = new_zone[0], new_zone[1]
-                                    zone_y = GROUND_Y
-                                    zone_height = 60
-                                
-                                # Move dog to same relative position in the updated zone
-                                new_x = zone_start + relative_x
-                                new_y = zone_y + zone_height - PET_HEIGHT + relative_y
-                                
-                                # Ensure dog stays within zone bounds
-                                if new_x < zone_start:
-                                    new_x = zone_start
-                                elif new_x > zone_end - PET_WIDTH:
-                                    new_x = zone_end - PET_WIDTH
-                                
-                                self.x = new_x
-                                self.y = new_y
-                                self.move_window(self.x, self.y)
+                                if self.state != 'walk':  # Only reposition when idle/sitting
+                                    new_zone = self.visible_zones[current_zone_index]
+                                    if len(new_zone) >= 4:
+                                        zone_start, zone_end, zone_y, zone_height = new_zone[0], new_zone[1], new_zone[2], new_zone[3]
+                                    else:
+                                        zone_start, zone_end = new_zone[0], new_zone[1]
+                                        zone_y = GROUND_Y
+                                        zone_height = 60
+                                    
+                                    # Move dog to same relative position in the updated zone
+                                    new_x = zone_start + relative_x
+                                    new_y = zone_y + zone_height - PET_HEIGHT + relative_y
+                                    
+                                    # Ensure dog stays within zone bounds
+                                    if new_x < zone_start:
+                                        new_x = zone_start
+                                    elif new_x > zone_end - PET_WIDTH:
+                                        new_x = zone_end - PET_WIDTH
+                                    
+                                    self.x = new_x
+                                    self.y = new_y
+                                    self.move_window(self.x, self.y)
                             
                             print(f"Zones updated from settings file: {len(self.visible_zones)} zones loaded")
             except Exception as e:
