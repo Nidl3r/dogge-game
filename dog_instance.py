@@ -18,8 +18,9 @@ SCREEN_WIDTH = screen_info.current_w
 SCREEN_HEIGHT = screen_info.current_h
 
 # Pet settings
-PET_WIDTH = 120
-PET_HEIGHT = 120
+# Pet settings
+PET_WIDTH = 200
+PET_HEIGHT = 200
 TASKBAR_HEIGHT = 60
 GROUND_Y = SCREEN_HEIGHT - PET_HEIGHT - TASKBAR_HEIGHT
 
@@ -47,11 +48,23 @@ class SchauzerSprites:
             path = os.path.join(SchauzerSprites.ASSETS_DIR, f"processed_{name}.png")
             try:
                 img = pygame.image.load(path)
-                SchauzerSprites._frame_cache[name] = img
+                
+                # Check if we need to pad (if image is smaller than window)
+                if img.get_width() != PET_WIDTH or img.get_height() != PET_HEIGHT:
+                    s = pygame.Surface((PET_WIDTH, PET_HEIGHT), pygame.SRCALPHA)
+                    s.fill((0,0,0,0))
+                    
+                    # Center at bottom
+                    x = (PET_WIDTH - img.get_width()) // 2
+                    y = PET_HEIGHT - img.get_height()
+                    s.blit(img, (x, y))
+                    SchauzerSprites._frame_cache[name] = s
+                else:
+                    SchauzerSprites._frame_cache[name] = img
             except Exception as e:
                 print(f"Error loading {name}: {e}")
                 s = pygame.Surface((PET_WIDTH, PET_HEIGHT), pygame.SRCALPHA)
-                s.fill((0,0,0,0))
+                s.fill((0,0,0,0)) # Revert error color to transparent
                 SchauzerSprites._frame_cache[name] = s
         return SchauzerSprites._frame_cache[name]
 
@@ -75,7 +88,8 @@ class SchauzerSprites:
     def create_sit_frames():
         f1 = SchauzerSprites.get_disk_frame('sit_1')
         f2 = SchauzerSprites.get_disk_frame('sit_2')
-        return [f1, f2, f2, f2, f2, f2, f2, f1]
+        # Triple the hold time (approx 3 seconds)
+        return [f1] + [f2] * 18 + [f1]
 
     @staticmethod
     def create_backflip_frames():
@@ -83,15 +97,34 @@ class SchauzerSprites:
         base = SchauzerSprites.get_disk_frame('idle')
         num_frames = 12
         
+        # Original sprite size assumption for centering
+        SPRITE_SIZE = 120
+        
         for i in range(num_frames):
             surf = pygame.Surface((PET_WIDTH, PET_HEIGHT), pygame.SRCALPHA)
             surf.fill(TRANSPARENT)
             
             angle = (i / num_frames) * 360
-            rotated = pygame.transform.rotate(base, angle)
-            hop_offset = -abs(math.sin(math.radians(angle))) * 30
             
-            rect = rotated.get_rect(center=(PET_WIDTH//2, PET_HEIGHT//2))
+            # Use original 120x120 frame for rotation to avoid huge rects
+            # We need to grab just the dog part from the padded frame or reload 'idle' raw
+            # Better: just load raw idle for rotation source
+            path = os.path.join(SchauzerSprites.ASSETS_DIR, "processed_idle.png")
+            raw_img = pygame.image.load(path)
+            
+            rotated = pygame.transform.rotate(raw_img, angle)
+            
+            # Calculate jump arc
+            # Jump height 80px
+            hop_offset = -abs(math.sin(math.radians(angle))) * 80
+            
+            # Center horizontally, start at bottom-center vertically
+            center_x = PET_WIDTH // 2
+            # Base Y is center of the dog when standing at bottom
+            # Dog is 120 high, window is 200 high. Dog top is at 80. Center is at 80 + 60 = 140.
+            center_y = PET_HEIGHT - (SPRITE_SIZE // 2)
+            
+            rect = rotated.get_rect(center=(center_x, center_y))
             rect.y += int(hop_offset)
             
             surf.blit(rotated, rect)
@@ -101,14 +134,14 @@ class SchauzerSprites:
     
     @staticmethod
     def create_poop_frames():
-        return [
-            SchauzerSprites.get_disk_frame('poop_1'),
-            SchauzerSprites.get_disk_frame('poop_2'),
-            SchauzerSprites.get_disk_frame('poop_2'),
-            SchauzerSprites.get_disk_frame('poop_2'),
-            SchauzerSprites.get_disk_frame('poop_3'),
-            SchauzerSprites.get_disk_frame('poop_4')
-        ]
+        # Extend poop animation (twice as long)
+        p1 = SchauzerSprites.get_disk_frame('poop_1')
+        p2 = SchauzerSprites.get_disk_frame('poop_2')
+        p3 = SchauzerSprites.get_disk_frame('poop_3')
+        p4 = SchauzerSprites.get_disk_frame('poop_4')
+        
+        # Sequence: Prepare -> Hold Squat -> Strain -> Hold Squat -> Strain -> Finish
+        return [p1] + [p2]*8 + [p3]*6 + [p2]*8 + [p3]*6 + [p4]
     
     @staticmethod
     def create_portal_out_frames():
@@ -122,17 +155,19 @@ class SchauzerSprites:
             path = os.path.join(SchauzerSprites.ASSETS_DIR, f"portal out {i}.png")
             try:
                 portal_img = pygame.image.load(path).convert_alpha()
-                scaled_width = dog_width
-                scaled_height = dog_height
+                scaled_width = 160
+                scaled_height = 160
                 scaled_portal = pygame.transform.scale(portal_img, (scaled_width, scaled_height))
                 
-                composite = pygame.Surface((dog_width, dog_height), pygame.SRCALPHA)
+                composite = pygame.Surface((PET_WIDTH, PET_HEIGHT), pygame.SRCALPHA)
                 
                 if i <= 3:
                     composite.blit(dog_idle, (0, 0))
                 
-                portal_x = (dog_width - scaled_width) // 2
-                portal_y = (dog_height - scaled_height) // 2
+                # Center portal over dog (Dog is at 40,80 size 120x120. Center is 100,140)
+                # Portal is 160x160. Center at 100,140 -> TopLeft is 20,60
+                portal_x = 20
+                portal_y = 60
                 composite.blit(scaled_portal, (portal_x, portal_y))
                 
                 if i <= 3:
@@ -156,15 +191,16 @@ class SchauzerSprites:
             path = os.path.join(SchauzerSprites.ASSETS_DIR, f"portal_in_{i}.png")
             try:
                 portal_img = pygame.image.load(path).convert_alpha()
-                scaled_width = dog_width
-                scaled_height = dog_height
+                scaled_width = 160
+                scaled_height = 160
                 scaled_portal = pygame.transform.scale(portal_img, (scaled_width, scaled_height))
                 
-                composite = pygame.Surface((dog_width, dog_height), pygame.SRCALPHA)
+                composite = pygame.Surface((PET_WIDTH, PET_HEIGHT), pygame.SRCALPHA)
                 composite.blit(dog_idle, (0, 0))
                 
-                portal_x = (dog_width - scaled_width) // 2
-                portal_y = (dog_height - scaled_height) // 2
+                # Center portal over dog
+                portal_x = 20
+                portal_y = 60
                 composite.blit(scaled_portal, (portal_x, portal_y))
                 composite.blit(dog_idle, (0, 0))
                 
@@ -583,6 +619,9 @@ class Dog:
         # Track settings file modification time for zone sharing
         self.settings_mtime = os.path.getmtime(SETTINGS_FILE) if os.path.exists(SETTINGS_FILE) else 0
         self.zone_check_timer = 0  # Check for zone updates every 2 seconds
+        
+        # AI Logic
+        self.next_action_delay = random.randint(2000, 4000) # Act every 2-4 seconds
     
     def is_in_visible_zone(self):
         for zone in self.visible_zones:
@@ -626,8 +665,7 @@ class Dog:
     
     def teleport_to_random_zone(self):
         """Teleport to a random zone"""
-        if len(self.visible_zones) <= 1:
-            return
+
 
         current_zone_idx = None
         for i, zone in enumerate(self.visible_zones):
@@ -778,15 +816,38 @@ class Dog:
                 self.frame = 0
         
         if self.state == 'idle':
-            if self.state_timer > 2000:
-                rand = random.random()
-                if rand < 0.02:
+
+            if self.state_timer > self.next_action_delay:
+                # Time to act! Pick an action based on weights
+                # Weights: Walk=35%, Trick=45%, Teleport=20%
+                
+                weights = ['walk', 'trick']
+                probs = [60, 25]
+                
+                if len(self.visible_zones) > 1:
+                    weights.append('teleport')
+                    probs.append(15)
+                else:
+                    # Redistribute teleport chance if no zones
+                    probs[0] += 10 # Walk 70%
+                    probs[1] += 5  # Trick 30%
+                
+                action = random.choices(weights, weights=probs, k=1)[0]
+                print(f"Action selected: {action}")
+                
+                if action == 'walk':
                     self.state = 'walk'
                     self.state_timer = 0
                     self.direction = random.choice([-1, 1])
-                elif rand < 0.03 and len(self.visible_zones) > 1:
+                elif action == 'trick':
+                    self.do_trick()
+                    self.state_timer = 0
+                elif action == 'teleport':
                     self.teleport_to_random_zone()
                     self.state_timer = 0
+                
+                # Pick next delay
+                self.next_action_delay = random.randint(2000, 4000)
 
         elif self.state == 'walk':
             speed = 2
@@ -844,6 +905,12 @@ class Dog:
             frame_img = pygame.transform.flip(frame_img, True, False)
 
         self.screen.blit(frame_img, (0, 0))
+        
+        # DEBUG: Show state
+        # font = pygame.font.SysFont('Arial', 12)
+        # text = font.render(self.state, True, (0, 0, 255))
+        # self.screen.blit(text, (5, 5))
+        
         pygame.display.flip()
     
     def run(self):
@@ -879,6 +946,11 @@ class Dog:
                             settings['zones'] = result_zones
                             save_settings(settings)
                             print(f"Zones saved: {result_zones}")
+                            
+                            # Force immediate teleport to new zones (with animation)
+                            if os.path.exists(SETTINGS_FILE):
+                                self.settings_mtime = os.path.getmtime(SETTINGS_FILE)
+                            self.teleport_to_random_zone()
                         
                         # Check if user wants to add another dog
                         spawn_dog = (result_zones is not None and editor.result == 'add_dog')

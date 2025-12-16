@@ -5,7 +5,7 @@ a = Analysis(
     ['dog_instance.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets'), ('schnauzer_art.py', '.')],
+    datas=[('assets', 'assets'), ('schnauzer_art.py', '.'), ('schnauzer_settings.json', '.')],
     hiddenimports=['pygame'],
     hookspath=[],
     hooksconfig={},

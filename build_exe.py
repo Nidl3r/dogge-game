@@ -26,35 +26,80 @@ def clean_build():
         os.remove("SchnauzerPet.spec")
         print("   Removed SchnauzerPet.spec")
 
+
 def build_executable():
     """Build the standalone executable"""
-    print("\nBuilding standalone executable...")
+    print("\nBuilding executables...")
     print("   This may take a few minutes...\n")
-    
-    # PyInstaller command
-    cmd = [
+
+    # 1. Build Dog Instance (single file)
+    print("   [1/2] Building Dog Instance...")
+    cmd_dog = [
         VENV_PYINSTALLER,
-        "--name=SchnauzerPet",
-        "--windowed",  # No console window
-        "--onedir",  # Single folder (easier to manage assets)
-        "--add-data=assets;assets",  # Include assets folder
-        "--add-data=schnauzer_art.py;.",  # Include sprite data
-        "--add-data=schnauzer_settings.json;.",  # Include default settings
-        "--hidden-import=pygame",  # Ensure pygame is included
-        "--hidden-import=tkinter",  # Ensure tkinter is included
-        "--noconfirm",  # Overwrite without asking
-        "launcher_gui.py"  # Entry point
+        "--name=DogInstance",
+        "--noconsole",
+        "--onefile", 
+        "--add-data=assets;assets",
+        "--add-data=schnauzer_art.py;.",
+        "--add-data=schnauzer_settings.json;.",
+        "--hidden-import=pygame",
+        "--noconfirm",
+        "--icon=dog_icon.ico",
+        "dog_instance.py"
     ]
     
-    # Run PyInstaller
     try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print("[SUCCESS] Build successful!")
-        return True
+        subprocess.run(cmd_dog, check=True, capture_output=True, text=True)
+        print("         Dog Instance built successfully.")
     except subprocess.CalledProcessError as e:
-        print(f"[ERROR] Build failed!")
+        print(f"[ERROR] Dog Instance build failed!")
         print(f"Error: {e.stderr}")
         return False
+
+    # 2. Build Launcher (directory)
+    print("   [2/2] Building Launcher...")
+    cmd_launcher = [
+        VENV_PYINSTALLER,
+        "--name=SchnauzerPet",
+        "--windowed",
+        "--onedir", 
+        "--add-data=assets;assets",
+        "--add-data=schnauzer_art.py;.",
+        "--add-data=schnauzer_settings.json;.",
+        "--hidden-import=pygame",
+        "--hidden-import=tkinter",
+        "--noconfirm",
+        "--icon=dog_icon.ico",
+        "launcher_gui.py"
+    ]
+    
+    try:
+        subprocess.run(cmd_launcher, check=True, capture_output=True, text=True)
+        print("         Launcher built successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"[ERROR] Launcher build failed!")
+        print(f"Error: {e.stderr}")
+        return False
+        
+    # 3. Move DogInstance.exe to SchnauzerPet folder
+    print("   Finalizing...")
+    try:
+        src = os.path.join("dist", "DogInstance.exe")
+        dst = os.path.join("dist", "SchnauzerPet", "DogInstance.exe")
+        
+        # Check if src exists (it might be in dist/DogInstance if not onefile, but we used --onefile)
+        if os.path.exists(src):
+            shutil.move(src, dst)
+            print(f"         Moved DogInstance.exe to distribution folder.")
+        else:
+            print(f"[ERROR] Could not find {src} to move!")
+            return False
+            
+        print("[SUCCESS] Build successful!")
+        return True
+    except Exception as e:
+         print(f"[ERROR] Failed to move executable: {e}")
+         return False
 
 def create_readme():
     """Create a simple README for distribution"""
@@ -93,7 +138,7 @@ Made with ❤️ | No installation required!
 """
     
     dist_readme = os.path.join("dist", "SchnauzerPet", "README.txt")
-    with open(dist_readme, 'w') as f:
+    with open(dist_readme, 'w', encoding='utf-8') as f:
         f.write(readme_content.strip())
     print("Created README.txt in dist folder")
 
